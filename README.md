@@ -12,7 +12,7 @@ Verde** e tenta conduzir o país à conquista da Copa do Mundo FIFA 2026.
 ## Como executar
 
 ``` bash
-swipl caboverde2026.pl
+swipl copa2026.pl
 ```
 
 Depois:

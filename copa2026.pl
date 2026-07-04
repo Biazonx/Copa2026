@@ -56,9 +56,9 @@ confronto_grupo(3, espanha,       uruguai).
 
 % Oponentes nas fases eliminatorias (narrativa tematica)
 % oponente_fase(Fase, Sigla, Forca, NomeDisplay, Bandeira)
-oponente_fase(oitavas, mexico,   3, 'Mexico',   '[MX]').
-oponente_fase(quartas, portugal, 4, 'Portugal', '[PT]').
-oponente_fase(semi,    brasil,   5, 'Brasil',   '[BR]').
+oponente_fase(oitavas, curaçao,   3, 'Curaçao',   '[CR]').
+oponente_fase(quartas, equador, 4, 'Equador', '[EQ]').
+oponente_fase(semi,    costadomarfim,   5, 'Costa do Marfim',   '[CM]').
 oponente_fase(final,   alemanha, 5, 'Alemanha', '[DE]').
 
 % Jogadores destaque de Cabo Verde
@@ -172,9 +172,9 @@ intro :-
     writeln('moral do plantel e sua reputacao com a imprensa.'),
     nl,
     writeln('FASE 1 - Grupo H  (3 partidas)'),
-    writeln('FASE 2 - Oitavas de Final vs Mexico'),
-    writeln('FASE 3 - Quartas de Final vs Portugal'),
-    writeln('FASE 4 - Semifinal vs Brasil'),
+    writeln('FASE 2 - Oitavas de Final vs Curaçao'),
+    writeln('FASE 3 - Quartas de Final vs Costa do Marfim'),
+    writeln('FASE 4 - Semifinal vs Equador'),
     writeln('FASE 5 - FINAL vs Alemanha'),
     nl,
     writeln('Digite "ajuda." para ver todos os comandos.'),
