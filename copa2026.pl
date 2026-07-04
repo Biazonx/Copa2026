@@ -56,7 +56,7 @@ confronto_grupo(3, espanha,       uruguai).
 
 % Oponentes nas fases eliminatorias (narrativa tematica)
 % oponente_fase(Fase, Sigla, Forca, NomeDisplay, Bandeira)
-oponente_fase(oitavas, curaçao,   3, 'Curaçao',   '[CR]').
+oponente_fase(oitavas, curacao,   3, 'Curacao',   '[CR]').
 oponente_fase(quartas, equador, 4, 'Equador', '[EQ]').
 oponente_fase(semi,    costadomarfim,   5, 'Costa do Marfim',   '[CM]').
 oponente_fase(final,   alemanha, 5, 'Alemanha', '[DE]').
@@ -172,7 +172,7 @@ intro :-
     writeln('moral do plantel e sua reputacao com a imprensa.'),
     nl,
     writeln('FASE 1 - Grupo H  (3 partidas)'),
-    writeln('FASE 2 - Oitavas de Final vs Curaçao'),
+    writeln('FASE 2 - Oitavas de Final vs Curacao'),
     writeln('FASE 3 - Quartas de Final vs Costa do Marfim'),
     writeln('FASE 4 - Semifinal vs Equador'),
     writeln('FASE 5 - FINAL vs Alemanha'),
@@ -958,7 +958,7 @@ fechar_painel_xpce :-
 % 12. SALVAR / CARREGAR
 % =============================================================================
 
-arquivo_save('caboverde2026_save.pl').
+arquivo_save('copa2026_save.pl').
 
 salvar_jogo :-
     arquivo_save(F),
