@@ -20,7 +20,7 @@
 % =============================================================================
 
 :- dynamic local_atual/1.
-:- dynamic energia/1.            % 0-5
+:- dynamic energia/1.            % 0-10
 :- dynamic reputacao/1.          % 0-100 (imagem publica do tecnico)
 :- dynamic moral/1.              % 0-100 (moral do plantel)
 :- dynamic tatica/1.             % ofensiva | defensiva | equilibrada
@@ -137,7 +137,7 @@ inicializar_estado :-
     retractall(treino_feito),     retractall(analise_feita(_)),
     retractall(jogo_acabou),
     asserta(local_atual(hotel)),
-    asserta(energia(5)),
+    asserta(energia(10)),
     asserta(reputacao(40)),
     asserta(moral(60)),
     asserta(tatica(equilibrada)),
@@ -173,8 +173,8 @@ intro :-
     nl,
     writeln('FASE 1 - Grupo H  (3 partidas)'),
     writeln('FASE 2 - Oitavas de Final vs Curacao'),
-    writeln('FASE 3 - Quartas de Final vs Costa do Marfim'),
-    writeln('FASE 4 - Semifinal vs Equador'),
+    writeln('FASE 3 - Quartas de Final vs Equador'),
+    writeln('FASE 4 - Semifinal vs Costa do Marfim'),
     writeln('FASE 5 - FINAL vs Alemanha'),
     nl,
     writeln('Digite "ajuda." para ver todos os comandos.'),
@@ -191,10 +191,14 @@ abrir_painel_xpce :-
             format('Aviso XPCE indisponivel (~w). Jogo continua em modo texto.~n', [Err]))
     ).
 
+% BUG3 FIX: pce_dispatch([]) move o event loop XPCE para uma thread separada,
+% liberando o stdin do terminal para read/1 sem interferencia (corrige o bug
+% onde o jogador precisava apertar backspace antes de digitar comandos).
 criar_painel_xpce :-
     new(W, picture('Cabo Verde 2026 - Painel do Tecnico')),
     send(W, size, size(650, 590)),
     asserta(janela_pce(W)),
+    ignore(catch(pce_dispatch([]), _, true)),   % XPCE em thread propria
     atualizar_painel,
     send(W, open).
 
@@ -351,17 +355,26 @@ exibir_txt_status(W, Txt, X, Y, Cor) :-
 % 5. LOOP PRINCIPAL
 % =============================================================================
 
+% PROTECAO: ignore/1 garante que uma falha inesperada em processar/1
+% nao derrube o loop inteiro -- o jogo continua mesmo se uma acao falhar.
 loop_principal :-
     ( jogo_acabou -> finalizar_jogo
     ; descrever_local_atual,
       ler_comando(Cmd),
-      processar(Cmd),
+      ignore(catch(processar(Cmd), Err,
+                   format('Erro interno ao processar comando: ~w~n', [Err]))),
       loop_principal
     ).
 
+% BUG3 FIX: read_term(user_input,...) le explicitamente do stdin do terminal,
+% evitando que o stream seja redirecionado pelo event loop do XPCE.
 ler_comando(Cmd) :-
     nl, write('> '), flush_output,
-    catch(read(Cmd), _, (skip_line, Cmd = erro_leitura)).
+    catch(
+        read_term(user_input, Cmd, [variable_names(_)]),
+        _,
+        (skip_line, Cmd = erro_leitura)
+    ).
 
 descrever_local_atual :-
     local_atual(Id),
@@ -424,7 +437,7 @@ mostrar_ajuda :-
     writeln('  estadio.                - Estadio (para jogar)'),
     nl,
     writeln('ACOES:'),
-    writeln('  descansar.              - recupera 5 de energia (hotel)'),
+    writeln('  descansar.              - recupera 10 de energia (hotel)'),
     writeln('  treinar.                - bonus na prox. partida (campo_treino, custo 2 en.)'),
     writeln('  analisar.               - estuda adversario (sala_analise, custo 1 en.)'),
     writeln('  motivar.                - discurso; +moral (hotel, custo 1 en.)'),
@@ -438,7 +451,7 @@ mostrar_ajuda :-
     writeln('  falar(kenny).           - conversa com Kenny Rocha (hotel)'),
     writeln('  entrevista.             - coletiva de imprensa (sala_imprensa)'),
     writeln('  jogar.                  - disputa a proxima partida (estadio)'),
-    writeln('  avancar.                - avanca como 3o se CV terminar em 3o lugar'),
+    writeln('  avancar.                - avanca para as eliminatorias'),
     nl,
     writeln('SISTEMA:'),
     writeln('  salvar.   carregar.   quit.'),
@@ -451,7 +464,7 @@ mostrar_status :-
     writeln('--- STATUS ATUAL ---'),
     format('Fase          : ~w~n', [F]),
     ( F == grupo -> format('Rodada        : ~w/3~n', [R]) ; true ),
-    format('Energia       : ~w/5~n', [En]),
+    format('Energia       : ~w/10~n', [En]),
     format('Moral         : ~w/100~n', [M]),
     format('Reputacao     : ~w/100~n', [Rep]),
     format('Tatica        : ~w~n', [T]),
@@ -515,9 +528,9 @@ gastar_energia(Q) :-
 
 acao_descansar :-
     local_atual(hotel), !,
-    retractall(energia(_)), asserta(energia(5)),
+    retractall(energia(_)), asserta(energia(10)),
     writeln('Noite de sono reparador. O plantel acorda renovado.'),
-    writeln('Energia totalmente recuperada! (5/5)'),
+    writeln('Energia totalmente recuperada! (10/10)'),
     atualizar_painel.
 acao_descansar :-
     writeln('Voce so pode descansar no hotel. Use: hotel.').
@@ -556,21 +569,24 @@ acao_analisar :-
 acao_analisar :-
     writeln('Va a sala de analise. Use: sala_analise.').
 
+% BUG1+2 FIX: acao_motivar nunca falha (if-then-else sem cortes soltos)
 acao_motivar :-
-    local_atual(hotel), !,
-    energia(E), E >= 1, !,
-    gastar_energia(1),
-    random_member(Frase, [
-        'Voce discursa com emocao: "Nao viemos a esta Copa para passeio. Viemos para HISTORIA!"',
-        'Voce relembra a trajetoria: "Da pelada na Ilha do Sal ate aqui -- cada quilometro valeu!"',
-        'Voce fala sobre as ilhas: "Nossa torcida viajou o Atlantico para nos ver. Nao vamos decepciona-los!"',
-        'Voce le uma mensagem dos filhos dos jogadores. Lagrimas no vestiario. Moral nas alturas.'
-    ]),
-    writeln(Frase),
-    mudar_moral(10),
-    moral(M),
-    format('Moral do plantel: +10 (agora em ~w/100)~n', [M]),
-    atualizar_painel.
+    ( local_atual(hotel)
+    -> ( energia(E), E >= 1
+       -> ( gastar_energia(1),
+            random_member(Frase, [
+                'Voce discursa com emocao: "Nao viemos a esta Copa para passeio. Viemos para HISTORIA!"',
+                'Voce relembra a trajetoria: "Da pelada na Ilha do Sal ate aqui -- cada quilometro valeu!"',
+                'Voce fala sobre as ilhas: "Nossa torcida viajou o Atlantico para nos ver!"',
+                'Voce le uma mensagem dos filhos dos jogadores. Lagrimas no vestiario!'
+            ]),
+            writeln(Frase),
+            mudar_moral(10),
+            moral(M),
+            format('Moral do plantel: +10 (agora em ~w/100)~n', [M]),
+            atualizar_painel )
+       ;   writeln('Sem energia suficiente para motivar (minimo: 1). Descanse no hotel.') )
+    ;   writeln('Voce so pode motivar o plantel no hotel. Use: hotel.') ).
 
 acao_tatica(T) :-
     ( T = ofensiva ; T = defensiva ; T = equilibrada ), !,
@@ -635,7 +651,7 @@ dialogo_jogador(garry) :-
     writeln('pensando numa Copa do Mundo. Agora chegou. Pode contar comigo."'),
     mudar_moral(4).
 dialogo_jogador(ryan) :-
-    writeln('Ryan Mendes: "Nosso povo nunca acreditou que um dia chegaríamos aqui.'),
+    writeln('Ryan Mendes: "Nosso povo nunca acreditou que um dia chegariamos aqui.'),
     writeln('Vamos provar que Cabo Verde e grande demais para qualquer grupo."'),
     mudar_moral(3).
 dialogo_jogador(stopira) :-
@@ -648,7 +664,7 @@ dialogo_jogador(vozinha) :-
     mudar_moral(4).
 dialogo_jogador(kenny) :-
     writeln('Kenny Rocha: "Meu irmao ficou no cais de Praia me vendo partir.'),
-    writeln('Prometí que ia trazer algo especial de volta. Vou cumprir."'),
+    writeln('Prometi que ia trazer algo especial de volta. Vou cumprir."'),
     mudar_moral(5).
 
 % =============================================================================
@@ -861,10 +877,10 @@ acao_avancar_terceiro :-
     classificacao(caboverde, Pts, _, _),
     ( Pts >= 3
     -> ( retractall(fase(_)), asserta(fase(oitavas)),
-         writeln('Cabo Verde avanca como um dos melhores 3os colocados!'),
+         writeln('Cabo Verde avanca para as eliminatorias!'),
          writeln('As Oitavas de Final aguardam! Va ao estadio.'),
          mudar_moral(10) )
-    ;  writeln('Pontos insuficientes para avancar como terceiro colocado.')
+    ;  writeln('Pontos insuficientes para avancar.')
     ).
 acao_avancar_terceiro :-
     writeln('Comando valido apenas apos terminar a fase de grupos.').
